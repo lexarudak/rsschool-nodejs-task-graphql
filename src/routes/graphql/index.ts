@@ -3,6 +3,7 @@ import { createGqlResponseSchema, gqlResponseSchema, schema } from './schemas.js
 import { GraphQLArgs, graphql } from 'graphql';
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
+ 
   fastify.route({
     url: '/',
     method: 'POST',
@@ -12,19 +13,24 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         200: gqlResponseSchema,
       },
     },
-    async handler({body: { query, variables }}) {
+    async handler({body: { query, variables } }) {
       console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
       console.log({query, variables});
       const args: GraphQLArgs = {
         schema, 
         source: query,
         variableValues: variables,
+        contextValue: this.prisma,
       };
       const result = await graphql(args);
-      console.log({result});
+      // console.log({result});
       return result;
     },
   });
 };
 
 export default plugin;
+
+// {
+//   "query": "{ memberTypes { id discount postsLimitPerMonth } }"
+// }

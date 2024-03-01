@@ -1,5 +1,7 @@
 import { Type } from '@fastify/type-provider-typebox';
-import { GraphQLList, GraphQLObjectType, GraphQLSchema, GraphQLString } from 'graphql';
+import {  PrismaClient } from '@prisma/client';
+import { GraphQLInt, GraphQLList, GraphQLObjectType, GraphQLSchema, GraphQLString } from 'graphql';
+
 
 export const gqlResponseSchema = Type.Partial(
   Type.Object({
@@ -20,45 +22,23 @@ export const createGqlResponseSchema = {
   ),
 };
 
-const UserType = new GraphQLObjectType({
-  name: 'User',
-  fields: {
-    id: { type: GraphQLString },
-    name: { type: GraphQLString },
-  },
-});
 
 const memberTypes = new GraphQLObjectType({
-  name: 'member-types',
+  name: 'memberTypes',
   fields: {
     id: { type: GraphQLString },
-    text: { type: GraphQLString },
-    user: { type: UserType },
-    message: { type: MessageType },
+    discount: { type: GraphQLString},
+    postsLimitPerMonth: { type: GraphQLInt },
   },
 });
 
 const query = new GraphQLObjectType({
   name: 'Query',
   fields: {
-    // user: {
-    //   type: UserType,
-    //   args: { id: { type: GraphQLString } },
-    //   resolve(parent, args) {
-    //     return fetchUserById(args.id); // функция, которая получает пользователя по ID
-    //   },
-    // },
-    // message: {
-    //   type: MessageType,
-    //   args: { id: { type: GraphQLString } },
-    //   resolve(parent, args) {
-    //     return fetchMessageById(args.id); // функция, которая получает сообщение по ID
-    //   },
-    // },
-    comments: {
+    memberTypes: {
       type: new GraphQLList(memberTypes),
-      resolve() {
-        return fetchAllComments(); // функция, которая получает все комментарии
+       async resolve (_, s, prisma: PrismaClient) {
+        return await prisma.memberType.findMany();
       },
     },
   },
