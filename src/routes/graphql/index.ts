@@ -23,7 +23,8 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         contextValue: this.prisma,
       };
       const result = await graphql(args);
-      // console.log({result});
+      console.log("ERRORRS", result.errors);
+      // console.log("DATAAAAAA", result.data)
       return result;
     },
   });
