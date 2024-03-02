@@ -1,9 +1,26 @@
 import { Type } from '@fastify/type-provider-typebox';
 import {  PrismaClient } from '@prisma/client';
-import { GraphQLBoolean, GraphQLEnumType, GraphQLFloat, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from 'graphql';
+import { GraphQLBoolean, GraphQLEnumType, GraphQLFloat, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from 'graphql';
 import { MemberTypeId as EnumMem } from '../member-types/schemas.js';
 import { UUIDType } from './types/uuid.js';
 
+type CreateUserDto =  {
+    name: string;
+    balance: number;
+}
+
+type CreatePostDto = {
+    title: string;
+    content: string;
+    authorId: string;
+}
+
+type CreateProfileDto = {
+    isMale: boolean;
+    yearOfBirth: number;
+    memberTypeId: EnumMem;
+    userId: string;
+}
 
 export const gqlResponseSchema = Type.Partial(
   Type.Object({
@@ -42,8 +59,8 @@ const MemberTypes = new GraphQLObjectType({
   },
 });
 
-const Posts = new GraphQLObjectType({
-  name: 'posts',
+const Post = new GraphQLObjectType({
+  name: 'post',
   fields: {
     id: { type: UUIDType },
     title: { type: GraphQLString},
@@ -52,16 +69,18 @@ const Posts = new GraphQLObjectType({
   },
 });
 
+const ProfileFields = {
+  id: { type: UUIDType },
+  isMale: { type: GraphQLBoolean},
+  yearOfBirth: { type: GraphQLInt},
+  userId: { type: UUIDType },
+  memberTypeId: { type: MemberTypesIdType },
+}
 
-
-const Profiles = new GraphQLObjectType({
-  name: 'profiles',
+const Profile = new GraphQLObjectType({
+  name: 'profile',
   fields: {
-    id: { type: UUIDType },
-    isMale: { type: GraphQLBoolean},
-    yearOfBirth: { type: GraphQLInt},
-    userId: { type: UUIDType },
-    memberTypeId: { type: UUIDType },
+    ...ProfileFields,
     memberType: {
       type: MemberTypes,
       async resolve({ id }: { id: string }, args, prisma: PrismaClient) {
@@ -81,26 +100,26 @@ const Profiles = new GraphQLObjectType({
   },
 });
 
-const Users: GraphQLObjectType = new GraphQLObjectType({
-  name: 'users',
+const User: GraphQLObjectType = new GraphQLObjectType({
+  name: 'user',
   fields:() => ({
     id: { type: UUIDType },
     name: { type: GraphQLString},
     balance: { type: GraphQLFloat},
     profile: {
-      type: Profiles,
+      type: Profile,
       resolve({ id }: { id: string }, args, prisma: PrismaClient) {
         return prisma.profile.findUnique({ where: { userId: id } });
       },
     },
     posts: {
-      type: new GraphQLList(Posts),
+      type: new GraphQLList(Post),
       resolve({ id }: { id: string }, args, prisma: PrismaClient) {
         return prisma.post.findMany({ where: { authorId: id } });
       },
     },
     subscribedToUser: {
-      type: new GraphQLList(Users),
+      type: new GraphQLList(User),
       resolve({ id }: { id: string }, args, prisma: PrismaClient) {
         return prisma.user.findMany({
           where: {
@@ -114,7 +133,7 @@ const Users: GraphQLObjectType = new GraphQLObjectType({
       },
     },
     userSubscribedTo: {
-      type: new GraphQLList(Users),
+      type: new GraphQLList(User),
       resolve({ id }: { id: string }, args, prisma: PrismaClient) {
         return prisma.user.findMany({
           where: {
@@ -158,13 +177,13 @@ const query = new GraphQLObjectType({
   },
     },
     posts: {
-      type: new GraphQLList(Posts),
+      type: new GraphQLList(Post),
       async resolve (parent, args, prisma: PrismaClient) {
         return await prisma.post.findMany();
       }
     },
     post: {
-      type: Posts,
+      type: Post,
       args: { 
         id: { 
           type:  new GraphQLNonNull(UUIDType)
@@ -180,13 +199,13 @@ const query = new GraphQLObjectType({
       }
     },
     users: {
-      type: new GraphQLList(Users),
+      type: new GraphQLList(User),
       async resolve (parent, args, prisma: PrismaClient) {
         return await prisma.user.findMany();
       }
     },
      user: {
-      type: Users,
+      type: User,
       args: { 
         id: { 
           type:  new GraphQLNonNull(UUIDType)
@@ -202,13 +221,13 @@ const query = new GraphQLObjectType({
       }
     },
     profiles: {
-      type: new GraphQLList(Profiles),
+      type: new GraphQLList(Profile),
       async resolve (parent, args, prisma: PrismaClient) {
         return await prisma.profile.findMany();
       }
     },
     profile: {
-      type: Profiles,
+      type: Profile,
       args: { 
         id: { 
           type:  new GraphQLNonNull(UUIDType)
@@ -226,8 +245,82 @@ const query = new GraphQLObjectType({
   },
 });
 
+const CreateUserInput = new GraphQLInputObjectType({
+  name: 'CreateUserInput',
+  fields: {
+    name: {
+      type: GraphQLString
+    },
+    balance: {
+      type: GraphQLFloat
+    },
+  },
+});
+
+const  CreatePostInput = new GraphQLInputObjectType({
+  name: 'CreatePostInput',
+  fields: {
+    title: {
+      type: GraphQLString
+    },
+    content: {
+      type: GraphQLString
+    },
+    authorId: {
+      type: UUIDType
+    },
+  },
+});
+
+const  CreateProfileInput = new GraphQLInputObjectType({
+  name: 'CreateProfileInput',
+  fields: {
+    ...ProfileFields
+  },
+});
+
+const mutation = new GraphQLObjectType({
+  name: 'Mutation',
+  fields: {
+    createUser: {
+      type: User,
+      args: {
+        dto: { type: CreateUserInput },
+      },
+      async resolve(parent, { dto }: { dto: CreateUserDto }, prisma: PrismaClient) {
+        return prisma.user.create({
+          data: dto,
+        });
+      },
+    },
+    createPost: {
+      type: Post,
+      args: {
+        dto: { type: CreatePostInput },
+      },
+      async resolve(parent, { dto }: { dto: CreatePostDto }, prisma: PrismaClient) {
+        return prisma.post.create({
+          data: dto,
+        });
+      },
+    },
+    createProfile: {
+      type: Profile,
+      args: {
+        dto: { type: CreateProfileInput },
+      },
+      async resolve(parent, { dto }: { dto: CreateProfileDto }, prisma: PrismaClient) {
+        return prisma.profile.create({
+          data: dto,
+        });
+      },
+    },
+  },
+});
+
 
 
 export const schema = new GraphQLSchema({
   query,
+  mutation,
 });
