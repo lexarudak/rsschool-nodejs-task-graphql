@@ -15,7 +15,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
       },
     },
     async handler({body: { query, variables } }) {
-      console.log({query, variables});
+      // console.log({query, variables});
       const args: GraphQLArgs = {
         schema, 
         source: query,
@@ -26,12 +26,13 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
       const document = parse(args.source);
       const err = validate(schema, document, [...specifiedRules, depthLimit(5)]);
       if (err.length > 0) {
+        console.log({err});
         return { errors: err };
       }
       
       const result = await graphql(args);
-      console.log("ERRORRS", result.errors);
-      // console.log("DATAAAAAA", result.data)
+      // console.log("ERRORS", result.errors);
+      // console.log("DATA", result.data)
       return result;
     },
   });

@@ -59,13 +59,17 @@ const MemberTypes = new GraphQLObjectType({
   },
 });
 
+const PostFields = {
+  title: { type: GraphQLString},
+  content: { type: GraphQLString},
+  authorId: { type: UUIDType, },
+}
+
 const Post = new GraphQLObjectType({
   name: 'post',
   fields: {
     id: { type: UUIDType },
-    title: { type: GraphQLString},
-    content: { type: GraphQLString},
-    authorId: { type: UUIDType, },
+    ...PostFields
   },
 });
 
@@ -257,18 +261,11 @@ const CreateUserInput = new GraphQLInputObjectType({
   },
 });
 
+
 const  CreatePostInput = new GraphQLInputObjectType({
   name: 'CreatePostInput',
   fields: {
-    title: {
-      type: GraphQLString
-    },
-    content: {
-      type: GraphQLString
-    },
-    authorId: {
-      type: UUIDType
-    },
+    ...PostFields
   },
 });
 
@@ -276,6 +273,32 @@ const  CreateProfileInput = new GraphQLInputObjectType({
   name: 'CreateProfileInput',
   fields: {
     ...ProfileFields
+  },
+});
+
+const  ChangePostInput = new GraphQLInputObjectType({
+  name: 'ChangePostInput',
+  fields: {
+    ...PostFields
+  },
+});
+
+const  ChangeProfileInput = new GraphQLInputObjectType({
+  name: 'ChangeProfileInput',
+  fields: {
+    ...ProfileFields
+  },
+});
+
+const  ChangeUserInput = new GraphQLInputObjectType({
+  name: 'ChangeUserInput',
+  fields: {
+    name: {
+      type: GraphQLString
+    },
+    balance: {
+      type: GraphQLFloat
+    },
   },
 });
 
@@ -313,6 +336,130 @@ const mutation = new GraphQLObjectType({
         return prisma.profile.create({
           data: dto,
         });
+      },
+    },
+    deletePost: {
+      type: GraphQLBoolean,
+      args: {
+        id: { type: UUIDType },
+      },
+      async resolve(parent, { id }: { id: string }, prisma: PrismaClient) {
+         await prisma.post.delete({
+          where: {
+            id,
+          },
+        });
+      },
+    },
+    deleteUser: {
+      type: GraphQLBoolean,
+      args: {
+        id: { type: UUIDType },
+      },
+      async resolve(parent, { id }: { id: string }, prisma: PrismaClient) {
+         await prisma.user.delete({
+          where: {
+            id,
+          },
+        });
+      },
+    },
+    deleteProfile: {
+      type: GraphQLBoolean,
+      args: {
+        id: { type: UUIDType },
+      },
+      async resolve(parent, { id }: { id: string }, prisma: PrismaClient) {
+         await prisma.profile.delete({
+          where: {
+            id,
+          },
+        });
+      },
+    },
+    changePost: {
+      type: Post,
+      args: {
+        id: { type: UUIDType },
+        dto: { type: ChangePostInput },
+      },
+      async resolve(parent, { id, dto }: {id: string, dto: CreatePostDto}, prisma: PrismaClient) {
+         const updatedPost = await prisma.post.update({
+          where: { id },
+          data: dto,
+        });
+        return updatedPost;
+      },
+    },
+    changeUser: {
+      type: User,
+      args: {
+        id: { type: UUIDType },
+        dto: { type: ChangeUserInput },
+      },
+      async resolve(parent, { id, dto }: {id: string, dto: CreateUserDto}, prisma: PrismaClient) {
+         const updatedUser = await prisma.user.update({
+          where: { id },
+          data: dto,
+        });
+        return updatedUser;
+      },
+    },
+    changeProfile: {
+      type: Profile,
+      args: {
+        id: { type: UUIDType },
+        dto: { type: ChangeProfileInput },
+      },
+      async resolve(parent, { id, dto }: {id: string, dto: CreateProfileDto}, prisma: PrismaClient) {
+          const profile = await prisma.profile.findUnique({ where: { id } });
+          if (!profile) {
+            throw new Error(`Field "userId" is not defined by type "ChangeProfileInput"`);
+          }
+          const updatedProfile = await prisma.profile.update({
+            where: { id },
+            data: dto,
+          });
+        return updatedProfile;
+      },
+    },
+    subscribeTo: {
+      type: User,
+      args: {
+        userId: { type: UUIDType },
+        authorId: { type: UUIDType },
+      },
+      async resolve(parent, { userId, authorId }: {userId: string, authorId: string}, prisma: PrismaClient) {
+        return prisma.user.update({
+          where: {
+            id: userId,
+          },
+          data: {
+            userSubscribedTo: {
+              create: {
+                authorId: authorId,
+              },
+            },
+          },
+        });
+      },
+    },
+    unsubscribeFrom: {
+      type: GraphQLBoolean,
+      args: {
+        userId: { type: UUIDType },
+        authorId: { type: UUIDType },
+      },
+      async resolve(parent, { userId, authorId }: {userId: string, authorId: string}, prisma: PrismaClient) {
+        await prisma.subscribersOnAuthors.delete({
+          where: {
+            subscriberId_authorId: {
+              subscriberId: userId,
+              authorId: authorId,
+            },
+          },
+        });
+        return null
       },
     },
   },
